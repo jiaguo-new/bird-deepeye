@@ -4,6 +4,15 @@ This candidate builds on DeepEye-SQL upstream 252ab45 (MIT). The earlier
 73.40% legacy Dev result belongs to a separate historical run. This revision
 changes input validation and few-shot eligibility and has no measured Dev EX.
 
+The project adds a generation experiment to address SQL intent errors.
+Under `[sql_generation]`, `dc_semantic_budget = 2` replaces two of the
+four direct-generation slots with a prompt that checks filters, join
+cardinality, output grain, grouping, and ties. The other two direct slots
+and the skeleton and ICL budgets stay the same. The default of zero
+keeps the adapted DeepEye comparison arm. The check uses the question,
+evidence and available schema, with no answer or extra model call per slot.
+This experiment has no measured accuracy gain yet.
+
 Use Python 3.12 and install dependencies with `uv sync --locked`. Populate a
 copy of `bird-dev-full.example.toml` outside Git. Set the dataset root and a
 private run directory, the model and embedding identities, and the local
@@ -38,3 +47,22 @@ and sampled SQL results reach those services. A local proxy forwarding
 those payloads outside the evaluation boundary does not satisfy this setup.
 The submission still needs a measured Dev token total, runtime and hardware,
 the frozen Dev prediction file, and a verified model-serving setup.
+
+## Paired TRAIN evaluation
+
+Before requesting any candidates, freeze a 100-question TRAIN holdout
+and a second 50-question set from disjoint TRAIN databases. Exclude those
+databases from the few-shot index used by both arms. Record the dataset
+version, model identities, code, prompts, index and scoring hashes. Both
+arms use the same model, four DC, four skeleton and four ICL slots, with
+the same revision and selection code and budgets. Actual requests,
+retries, failures, and tokens are counted separately. The added prompt
+increases input tokens and can affect actual retry and downstream costs.
+
+Use the same official execution comparison for both arms, with predictions
+frozen before the scorer gets Gold. Preserve the full denominator and
+report rescues and regressions. Require at least five net additional
+correct on the 100 paired questions and a positive net on the untouched
+50-question confirmation before promoting the variant. This comparison
+tests the effect of our change relative to the adapted DeepEye baseline.
+Claims against published DeepEye require a separate same-protocol baseline.

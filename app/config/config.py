@@ -259,6 +259,14 @@ class SchemaLinkingConfig(BaseModel):
     
 
 class SQLGenerationConfig(BaseModel):
+    dc_semantic_budget: int = Field(default=0, ge=0, description="DC slots reserved for SQL semantic checks")
+
+    @model_validator(mode="after")
+    def validate_dc_semantic_budget(self):
+        if self.dc_semantic_budget > self.dc_sampling_budget:
+            raise ValueError("dc_semantic_budget cannot exceed dc_sampling_budget")
+        return self
+
     llm: LLMConfig = Field(..., description="The llm config, used to generate sql")
     save_path: str = Field(default=_path_to_str(WORKSPACE_ROOT / "sql_generation"), description="The save path of the sql generation result")
     dc_sampling_budget: int = Field(default=5, description="The sampling budget of the dc generation")
@@ -583,6 +591,7 @@ class Config:
                 WORKSPACE_ROOT / "sql_generation",
             ),
             "dc_sampling_budget": sql_generation_config.get("dc_sampling_budget", 5),
+            "dc_semantic_budget": sql_generation_config.get("dc_semantic_budget", 0),
             "skeleton_sampling_budget": sql_generation_config.get("skeleton_sampling_budget", 5),
             "icl_sampling_budget": sql_generation_config.get("icl_sampling_budget", 5),
             "icl_few_shot_examples_path": sql_generation_config.get("icl_few_shot_examples_path", None),

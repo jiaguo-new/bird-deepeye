@@ -96,7 +96,13 @@ class SQLGenerationRunner:
         
         # Parallelize different generation methods within a single data item
         generation_tasks = {
-            "dc": self._inner_thread_pool_executor.submit(self._dc_generator.generate, data_item, self._llm, self._stage_config.dc_sampling_budget),
+            "dc": self._inner_thread_pool_executor.submit(
+                self._dc_generator.generate_mixed,
+                data_item,
+                self._llm,
+                self._stage_config.dc_sampling_budget,
+                self._stage_config.dc_semantic_budget,
+            ),
             "skeleton": self._inner_thread_pool_executor.submit(self._skeleton_generator.generate, data_item, self._llm, self._stage_config.skeleton_sampling_budget),
             "icl": self._inner_thread_pool_executor.submit(self._icl_generator.generate, data_item, self._llm, self._stage_config.icl_sampling_budget)
         }

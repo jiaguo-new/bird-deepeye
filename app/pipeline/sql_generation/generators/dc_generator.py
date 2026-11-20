@@ -7,8 +7,19 @@ from typing import Dict, List, Tuple
 
 
 class DCGenerator(BaseSQLGenerator):
-    
+
     def generate(self, data_item: DataItem, llm: LLM, sampling_budget: int = 1) -> Tuple[List[str], Dict[str, int]]:
+        return self._generate(data_item, llm, sampling_budget, semantic_checks=False)
+
+    def generate_mixed(self, data_item: DataItem, llm: LLM, total_budget: int, semantic_budget: int):
+        standard, standard_usage = self.generate(data_item, llm, total_budget - semantic_budget)
+        guided, guided_usage = self._generate(data_item, llm, semantic_budget, semantic_checks=True)
+        usage = {key: standard_usage[key] + guided_usage[key] for key in standard_usage}
+        if standard is None or guided is None:
+            return None, usage
+        return standard + guided, usage
+
+    def _generate(self, data_item, llm, sampling_budget, *, semantic_checks):
         if sampling_budget == 0:
             return [], {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         
@@ -16,12 +27,22 @@ class DCGenerator(BaseSQLGenerator):
         
         # Define the prompt format function for DC generator
         def prompt_format_func(schema_profile: str) -> str:
-            return PromptFactory.format_dc_sql_generation_prompt(
+            prompt = PromptFactory.format_dc_sql_generation_prompt(
                 schema_profile, 
                 data_item.question, 
                 data_item.evidence, 
                 db_type=db_type
             )
+            if semantic_checks:
+                prompt += (
+                    "\nBefore writing the SQL, check the requested output columns and row grain. "
+                    "For each condition in the question and evidence, establish which column, "
+                    "comparison and value encode it. Use only conditions supported by the request. "
+                    "If a join is needed, verify its keys and whether it duplicates the counted "
+                    "entity. For aggregates or rankings, verify grouping, distinctness, and how "
+                    "ties should be treated from the wording. Return SQL in the requested format."
+                )
+            return prompt
             
         final_prompt, level = self._generate_with_progressive_stripping(data_item, llm, prompt_format_func)
         
