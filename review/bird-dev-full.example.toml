@@ -1,0 +1,120 @@
+########## Logger configuration ##########
+[logger]
+print_level = "INFO"
+
+########## Run output configuration ##########
+[run]
+save_root = "<SET_SAVE_ROOT>"
+exp_name = "bird-official-dev-full"
+parallelism = 12
+embedding_batch_size = 8
+llm_timeout = 300
+progress_log_interval = 50
+checkpoint_interval = 20
+default_llm_profile = "qwen36_thinking"
+
+########## LLM profiles ##########
+[llm_profiles.qwen36_thinking]
+model = "qwen3.8-27b"
+base_url = "<SET_BASE_URL>"
+api_key = "<SET_API_KEY>"
+max_tokens = 8192
+temperature = 0.6
+reasoning_effort = "low"
+n_call_strategy = "split"
+api_type = "openai"
+max_model_len = 65536
+
+[llm_profiles.qwen36_instruct]
+model = "qwen3.8-27b"
+base_url = "<SET_BASE_URL>"
+api_key = "<SET_API_KEY>"
+max_tokens = 8192
+temperature = 0.7
+reasoning_effort = "low"
+n_call_strategy = "split"
+api_type = "openai"
+max_model_len = 65536
+
+[llm_profiles.qwen38_flash_mask]
+model = "qwen3.8-flash"
+base_url = "<SET_BASE_URL>"
+api_key = "<SET_API_KEY>"
+max_tokens = 1024
+temperature = 0.3
+reasoning_effort = "low"
+n_call_strategy = "split"
+api_type = "openai"
+max_model_len = 65536
+
+########## Default embedding configuration ##########
+[embedding]
+api_type = "openai"
+embedding_model_name_or_path = "<SET_EMBEDDING_MODEL_NAME_OR_PATH>"
+base_url = "<SET_BASE_URL>"
+api_key = "<SET_API_KEY>"
+
+########## Dataset configuration ##########
+[dataset]
+type = "bird"
+split = "dev"
+root_path = "<SET_ROOT_PATH>"
+sql_execution_timeout = 600
+
+########## Vector database configuration ##########
+[vector_database]
+max_value_length = 100
+lower_meta_data = true
+build_backend = "local_index"
+
+########## Few-shot index configuration ##########
+[few_shot_index]
+num_examples = 7
+question_weight = 0.6
+sql_weight = 0.4
+similarity_device = "cpu"
+force_rebuild = false
+llm_profile = "qwen38_flash_mask"
+
+[few_shot_index.preliminary_sql]
+enabled = true
+dc_sampling_budget = 4
+skeleton_sampling_budget = 4
+llm_profile = "qwen36_thinking"
+
+########## Value retrieval configuration ##########
+[value_retrieval]
+max_values_per_column = 5
+backend = "local_index"
+local_index_device = "cpu"
+llm_profile = "qwen36_instruct"
+
+########## Schema linking configuration ##########
+[schema_linking]
+direct_linking_sampling_budget = 4
+reversed_linking_sampling_budget = 4
+value_distance_threshold = 0.05
+llm_profile = "qwen36_thinking"
+
+########## SQL generation configuration ##########
+[sql_generation]
+dc_sampling_budget = 4
+skeleton_sampling_budget = 4
+icl_sampling_budget = 4
+llm_profile = "qwen36_thinking"
+
+########## SQL revision configuration ##########
+[sql_revision]
+checker_sampling_budget = 5
+llm_profile = "qwen36_thinking"
+
+########## SQL selection configuration ##########
+[sql_selection]
+filter_top_k_sql = 2
+evaluator_sampling_budget = 5
+shortcut_consistency_score_threshold = 0.6
+llm_profile = "qwen36_thinking"
+
+########## LLM extractor configuration ##########
+[llm_extractor]
+max_retry = 5

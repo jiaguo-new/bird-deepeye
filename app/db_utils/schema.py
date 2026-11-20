@@ -119,14 +119,16 @@ def load_database_description(db_id: str, database_dir: Path) -> Dict[str, Dict[
         encoding_type = chardet.detect(csv_file.read_bytes())["encoding"]
         table_description = {}
         table_description_df = pd.read_csv(csv_file, encoding=encoding_type, index_col=False)
+        if "original_column_name" not in table_description_df.columns or "column_description" not in table_description_df.columns:
+            continue
         for _, row in table_description_df.iterrows():
-            if pd.isna(row["original_column_name"]):
+            if pd.isna(row.get("original_column_name")):
                 continue
-            original_column_name_lower = row["original_column_name"].strip().lower()
-            expanded_column_name = row["column_name"].strip() if pd.notna(row["column_name"]) else ""
-            column_description = _normalize_description_string(row["column_description"]) if pd.notna(row["column_description"]) else ""
-            data_format = row["data_format"].strip() if pd.notna(row["data_format"]) else ""
-            value_description = _normalize_description_string(row["value_description"]) if pd.notna(row["value_description"]) else ""
+            original_column_name_lower = str(row.get("original_column_name")).strip().lower()
+            expanded_column_name = str(row.get("column_name", "") or "").strip() if pd.notna(row.get("column_name")) else ""
+            column_description = _normalize_description_string(row.get("column_description")) if pd.notna(row.get("column_description")) else ""
+            data_format = str(row.get("data_format", "") or "").strip() if pd.notna(row.get("data_format")) else ""
+            value_description = _normalize_description_string(row.get("value_description")) if pd.notna(row.get("value_description")) else ""
             if value_description.lower().startswith("not useful"):
                 value_description = value_description[len("not useful"):].strip()
             table_description[original_column_name_lower] = {

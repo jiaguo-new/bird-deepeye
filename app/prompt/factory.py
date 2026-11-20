@@ -1,6 +1,9 @@
 from .prompt_template import *
 from .spider2_prompt_template import *
+import os
 from typing import List, Dict, Any, Tuple, Optional
+
+_SQL_CONTRACT = os.environ.get("SQL_CONTRACT_PROMPT", "")
 
 
 def _is_spider2_db_type(db_type: Optional[str]) -> bool:
@@ -33,13 +36,13 @@ class PromptFactory:
     def format_skeleton_sql_generation_prompt(database_schema: str, question: str, hint: str, db_type: Optional[str] = None) -> str:
         if _is_spider2_db_type(db_type):
             return SPIDER2_SKELETON_SQL_GENERATION_PROMPT.format(DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint, DATABASE_ENGINE=db_type.upper())
-        return SKELETON_SQL_GENERATION_PROMPT.format(DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint)
+        return SKELETON_SQL_GENERATION_PROMPT.format(DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint) + _SQL_CONTRACT
     
     @staticmethod
     def format_dc_sql_generation_prompt(database_schema: str, question: str, hint: str, db_type: Optional[str] = None) -> str:
         if _is_spider2_db_type(db_type):
             return SPIDER2_DC_SQL_GENERATION_PROMPT.format(DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint, DATABASE_ENGINE=db_type.upper())
-        return DC_SQL_GENERATION_PROMPT.format(DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint)
+        return DC_SQL_GENERATION_PROMPT.format(DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint) + _SQL_CONTRACT
     
     @staticmethod
     def format_icl_sql_generation_prompt(few_shot_examples: List[Dict[str, Any]], database_schema: str, question: str, hint: str, db_type: Optional[str] = None) -> str:
@@ -49,7 +52,7 @@ class PromptFactory:
         )
         if _is_spider2_db_type(db_type):
             return SPIDER2_ICL_SQL_GENERATION_PROMPT.format(FEW_SHOT_EXAMPLES=few_shot_examples_str, DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint, DATABASE_ENGINE=db_type.upper())
-        return ICL_SQL_GENERATION_PROMPT.format(FEW_SHOT_EXAMPLES=few_shot_examples_str, DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint)
+        return ICL_SQL_GENERATION_PROMPT.format(FEW_SHOT_EXAMPLES=few_shot_examples_str, DATABASE_SCHEMA=database_schema, QUESTION=question, HINT=hint) + _SQL_CONTRACT
 
     @staticmethod
     def format_execution_checker_prompt(database_schema: str, question: str, hint: str, sql: str, execution_result: str, db_type: Optional[str] = None) -> str:

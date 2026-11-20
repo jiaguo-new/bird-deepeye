@@ -1,5 +1,6 @@
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction, OpenAIEmbeddingFunction
+from app.vector_db.http_embedding_function import HTTPEmbeddingFunction
 from pathlib import Path
 import shutil
 from typing import List, Dict, Any
@@ -90,10 +91,10 @@ def get_embedding_function(
             )
     elif api_type == "openai":
         logger.info(f"Using OpenAI embedding function for {model_name_or_path}")
-        return OpenAIEmbeddingFunction(
-            model_name=model_name_or_path, 
-            api_base=base_url, 
-            api_key=api_key
+        return HTTPEmbeddingFunction(
+            model_name=model_name_or_path,
+            base_url=base_url,
+            api_key=api_key,
         )
     else:
         raise ValueError(f"Unsupported embedding api_type: {api_type}")
@@ -143,7 +144,8 @@ def _process_one_column(
     query_sql = f"""
     SELECT DISTINCT `{column_name}` FROM `{table_name}` 
     WHERE `{column_name}` IS NOT NULL 
-    AND LENGTH(CAST(`{column_name}` AS TEXT)) <= {max_value_length};
+    AND LENGTH(CAST(`{column_name}` AS TEXT)) <= {max_value_length}
+    LIMIT 2000;
     """
     # Keep vector DB scans bounded so large/slow SQLite tables do not stall the pipeline indefinitely.
     # These full-column scans are one-shot ingestion work; bypass the shared SQL cache

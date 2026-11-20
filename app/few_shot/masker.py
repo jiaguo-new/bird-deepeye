@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 import re
 import threading
 from dataclasses import dataclass
@@ -171,6 +172,41 @@ def make_mask_cache_key(example: TrainingExample) -> str:
     return hashlib.sha1(content.encode("utf-8")).hexdigest()
 
 
+
+def _ask_mask_once(llm, messages, system_message=None, timeout: int = 45):
+    """One-shot masking call: no 15x retry; failures fall back to raw text."""
+    client = llm._get_client()
+    req = {
+        "model": llm.llm_config.model,
+        "messages": ([system_message] if system_message else []) + messages,
+        "max_tokens": llm.llm_config.max_tokens,
+        "temperature": llm.llm_config.temperature,
+        "timeout": timeout,
+    }
+    if llm.llm_config.reasoning_effort is not None:
+        req["reasoning_effort"] = llm.llm_config.reasoning_effort
+    if llm.llm_config.extra_body:
+        req["extra_body"] = llm.llm_config.extra_body
+    last = None
+    for attempt in range(4):
+        try:
+            resp = client.chat.completions.create(**req)
+            if not resp.choices:
+                raise ValueError("no choices")
+            content = resp.choices[0].message.content
+            if content is None or not content.strip():
+                raise ValueError("empty content")
+            return [resp.choices[0].message], (resp.usage.model_dump() if resp.usage else {})
+        except Exception as exc:
+            last = exc
+            time.sleep(2 + 3*attempt)
+    raise last
+    # old body follows (unreachable)
+    content = resp.choices[0].message.content
+    if content is None or not content.strip():
+        raise ValueError("empty content")
+    return [resp.choices[0].message], (resp.usage.model_dump() if resp.usage else {})
+
 def mask_training_examples(
     examples: Iterable[TrainingExample],
     llm: Optional[LLM],
@@ -226,10 +262,11 @@ def mask_training_example(
                 ),
             }
         ]
-        choices, _ = llm.ask(
+        choices, _ = _ask_mask_once(
+            llm,
             messages=messages,
             system_message=MASK_SYSTEM_PROMPT,
-            timeout=llm_timeout,
+            timeout=min(45, llm_timeout),
         )
         parsed = parse_mask_response(choices[0].content)
         result = MaskResult(
@@ -301,10 +338,11 @@ def _ask_mask_question_sql(question: str, evidence: str, sql: str, llm: LLM, llm
             ),
         }
     ]
-    choices, _ = llm.ask(
+    choices, _ = _ask_mask_once(
+        llm,
         messages=messages,
         system_message=MASK_SYSTEM_PROMPT,
-        timeout=llm_timeout,
+        timeout=min(45, llm_timeout),
     )
     return parse_mask_response(choices[0].content)
 
@@ -319,10 +357,11 @@ def _ask_mask_question_only(question: str, evidence: str, llm: LLM, llm_timeout:
             ),
         }
     ]
-    choices, _ = llm.ask(
+    choices, _ = _ask_mask_once(
+        llm,
         messages=messages,
         system_message=MASK_SYSTEM_PROMPT,
-        timeout=llm_timeout,
+        timeout=min(45, llm_timeout),
     )
     return parse_question_only_mask_response(choices[0].content)
 
