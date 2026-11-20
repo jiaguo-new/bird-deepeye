@@ -1,4 +1,5 @@
 from .base import BaseSQLGenerator
+from .value_anchors import format_value_anchors
 from app.dataset import DataItem
 from app.llm import LLM
 from app.logger import logger
@@ -11,15 +12,21 @@ class DCGenerator(BaseSQLGenerator):
     def generate(self, data_item: DataItem, llm: LLM, sampling_budget: int = 1) -> Tuple[List[str], Dict[str, int]]:
         return self._generate(data_item, llm, sampling_budget, semantic_checks=False)
 
-    def generate_mixed(self, data_item: DataItem, llm: LLM, total_budget: int, semantic_budget: int):
-        standard, standard_usage = self.generate(data_item, llm, total_budget - semantic_budget)
-        guided, guided_usage = self._generate(data_item, llm, semantic_budget, semantic_checks=True)
+    def generate_mixed(self, data_item: DataItem, llm: LLM, total_budget: int, semantic_budget: int,
+                       include_value_anchors: bool = False):
+        anchors = format_value_anchors(data_item) if include_value_anchors else ""
+        standard, standard_usage = self._generate(
+            data_item, llm, total_budget - semantic_budget, semantic_checks=False, anchors=anchors,
+        )
+        guided, guided_usage = self._generate(
+            data_item, llm, semantic_budget, semantic_checks=True, anchors=anchors,
+        )
         usage = {key: standard_usage[key] + guided_usage[key] for key in standard_usage}
         if standard is None or guided is None:
             return None, usage
         return standard + guided, usage
 
-    def _generate(self, data_item, llm, sampling_budget, *, semantic_checks):
+    def _generate(self, data_item, llm, sampling_budget, *, semantic_checks, anchors=""):
         if sampling_budget == 0:
             return [], {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         
@@ -42,7 +49,7 @@ class DCGenerator(BaseSQLGenerator):
                     "entity. For aggregates or rankings, verify grouping, distinctness, and how "
                     "ties should be treated from the wording. Return SQL in the requested format."
                 )
-            return prompt
+            return prompt + anchors
             
         final_prompt, level = self._generate_with_progressive_stripping(data_item, llm, prompt_format_func)
         

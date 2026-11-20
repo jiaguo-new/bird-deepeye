@@ -260,6 +260,7 @@ class SchemaLinkingConfig(BaseModel):
 
 class SQLGenerationConfig(BaseModel):
     dc_semantic_budget: int = Field(default=0, ge=0, description="DC slots reserved for SQL semantic checks")
+    dc_value_anchors: bool = Field(default=False, description="Include exact request-to-column value matches in DC prompts")
 
     @model_validator(mode="after")
     def validate_dc_semantic_budget(self):
@@ -592,6 +593,7 @@ class Config:
             ),
             "dc_sampling_budget": sql_generation_config.get("dc_sampling_budget", 5),
             "dc_semantic_budget": sql_generation_config.get("dc_semantic_budget", 0),
+            "dc_value_anchors": sql_generation_config.get("dc_value_anchors", False),
             "skeleton_sampling_budget": sql_generation_config.get("skeleton_sampling_budget", 5),
             "icl_sampling_budget": sql_generation_config.get("icl_sampling_budget", 5),
             "icl_few_shot_examples_path": sql_generation_config.get("icl_few_shot_examples_path", None),

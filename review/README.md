@@ -12,6 +12,9 @@ and the skeleton and ICL budgets stay the same. The default of zero
 keeps the adapted DeepEye comparison arm. The check uses the question,
 evidence and available schema, with no answer or extra model call per slot.
 This experiment has no measured accuracy gain yet.
+Set `dc_value_anchors = true` in `[sql_generation]` to append column-bound
+evidence to direct prompts. Anchors use only retrieved text values explicitly
+mentioned in the question or evidence and cap the added context at six entries.
 
 Use Python 3.12 and install dependencies with `uv sync --locked`. Populate a
 copy of `bird-dev-full.example.toml` outside Git. Set the dataset root and a
@@ -66,3 +69,9 @@ correct on the 100 paired questions and a positive net on the untouched
 50-question confirmation before promoting the variant. This comparison
 tests the effect of our change relative to the adapted DeepEye baseline.
 Claims against published DeepEye require a separate same-protocol baseline.
+
+For the value anchor study, fix both switches before opening any scores. Run
+baseline, semantic checks only, value anchors only, and both switches together.
+Keep input, models, generation slots and downstream revision/selection fixed.
+Report the individual and joint effects against baseline and the incremental
+effect of adding anchors to semantic checks. Compare EX and actual token costs.

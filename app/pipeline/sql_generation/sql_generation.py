@@ -102,6 +102,7 @@ class SQLGenerationRunner:
                 self._llm,
                 self._stage_config.dc_sampling_budget,
                 self._stage_config.dc_semantic_budget,
+                self._stage_config.dc_value_anchors,
             ),
             "skeleton": self._inner_thread_pool_executor.submit(self._skeleton_generator.generate, data_item, self._llm, self._stage_config.skeleton_sampling_budget),
             "icl": self._inner_thread_pool_executor.submit(self._icl_generator.generate, data_item, self._llm, self._stage_config.icl_sampling_budget)
