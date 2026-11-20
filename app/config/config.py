@@ -44,6 +44,7 @@ class DatasetConfig(BaseModel):
     save_path: Optional[str] = Field(default=None, description="The save path of the dataset snapshot manifest")
     max_samples: Optional[int] = Field(default=None, description="The maximum number of samples to load")
     max_samples_per_db: Optional[int] = Field(default=None, description="The maximum number of samples to load per database")
+    blind_inference: bool = False
     
     # Spider2 specific configurations
     snowflake_credential_path: Optional[str] = Field(default=None, description="Path to Snowflake credential JSON file")
@@ -54,6 +55,8 @@ class DatasetConfig(BaseModel):
     
     @model_validator(mode="after")
     def validate_split_and_defaults(self):
+        if self.blind_inference and self.type != "bird":
+            raise ValueError("blind_inference is supported only for BIRD")
         if self.type == "spider":
             if self.split not in ["dev", "test"]:
                 raise ValueError(f"Invalid split: {self.split}")
@@ -403,6 +406,7 @@ class Config:
             ),
             "max_samples": dataset_config.get("max_samples", None),
             "max_samples_per_db": dataset_config.get("max_samples_per_db", None),
+            "blind_inference": dataset_config.get("blind_inference", False),
             # Spider2 specific configurations
             "snowflake_credential_path": dataset_config.get("snowflake_credential_path", None),
             "bigquery_credential_path": dataset_config.get("bigquery_credential_path", None),

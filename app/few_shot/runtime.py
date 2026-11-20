@@ -105,7 +105,13 @@ def prepare_few_shot_examples_for_item(
         top_k=top_k,
         question_weight=question_weight,
         sql_weight=sql_weight,
+        exclude_db_ids=[data_item.database_id],
     )
+    if any(
+        not result.example.get("db_id") or result.example["db_id"] == data_item.database_id
+        for result in retrieval_results
+    ):
+        raise ValueError("Few-shot retrieval returned unknown or same-database provenance")
     examples = [
         {
             "question": result.example["question"],

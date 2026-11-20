@@ -249,6 +249,9 @@ class BirdDataset(BaseDataset):
         data_path = Path(self._config.root_path) / self._config.split / f"{self._config.split}.json"
         with open(data_path, "r") as f:
             data_list = json.load(f)
+        blind = self._config.split == "test" or self._config.blind_inference
+        if blind and any(row.get("SQL") or row.get("gold_sql") for row in data_list):
+            raise ValueError("BIRD blind inference input contains Gold SQL")
         
         if self._config.max_samples is not None:
             data_list = data_list[:self._config.max_samples]
@@ -260,8 +263,8 @@ class BirdDataset(BaseDataset):
             question_id = data_item.get("question_id")
             question = data_item.get("question")
             evidence = data_item.get("evidence")
-            gold_sql = data_item.get("SQL")
-            difficulty = data_item.get("difficulty")
+            gold_sql = "" if blind else data_item.get("SQL", "")
+            difficulty = data_item.get("difficulty") or ""
             database_id = data_item.get("db_id")
             
             # Check if we've reached the max samples per database limit
