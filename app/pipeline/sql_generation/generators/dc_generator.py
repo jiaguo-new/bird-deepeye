@@ -13,20 +13,25 @@ class DCGenerator(BaseSQLGenerator):
         return self._generate(data_item, llm, sampling_budget, semantic_checks=False)
 
     def generate_mixed(self, data_item: DataItem, llm: LLM, total_budget: int, semantic_budget: int,
-                       include_value_anchors: bool = False):
+                       include_value_anchors: bool = False, full_schema_budget: int = 0):
         anchors = format_value_anchors(data_item) if include_value_anchors else ""
         standard, standard_usage = self._generate(
-            data_item, llm, total_budget - semantic_budget, semantic_checks=False, anchors=anchors,
+            data_item, llm, total_budget - semantic_budget - full_schema_budget,
+            semantic_checks=False, anchors=anchors,
         )
         guided, guided_usage = self._generate(
             data_item, llm, semantic_budget, semantic_checks=True, anchors=anchors,
         )
-        usage = {key: standard_usage[key] + guided_usage[key] for key in standard_usage}
-        if standard is None or guided is None:
+        full, full_usage = self._generate(
+            data_item, llm, full_schema_budget, semantic_checks=False, anchors=anchors,
+            full_schema=True,
+        )
+        usage = {key: standard_usage[key] + guided_usage[key] + full_usage[key] for key in standard_usage}
+        if standard is None or guided is None or full is None:
             return None, usage
-        return standard + guided, usage
+        return standard + guided + full, usage
 
-    def _generate(self, data_item, llm, sampling_budget, *, semantic_checks, anchors=""):
+    def _generate(self, data_item, llm, sampling_budget, *, semantic_checks, anchors="", full_schema=False):
         if sampling_budget == 0:
             return [], {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         
@@ -51,7 +56,13 @@ class DCGenerator(BaseSQLGenerator):
                 )
             return prompt + anchors
             
-        final_prompt, level = self._generate_with_progressive_stripping(data_item, llm, prompt_format_func)
+        if full_schema:
+            schema = getattr(data_item, "database_schema_after_value_retrieval", None) or data_item.database_schema
+            final_prompt, level = self._generate_with_progressive_stripping(
+                data_item, llm, prompt_format_func, schema_override=schema,
+            )
+        else:
+            final_prompt, level = self._generate_with_progressive_stripping(data_item, llm, prompt_format_func)
         
         if final_prompt is None:
             logger.error(f"CRITICAL: Even minimal DC prompt for item {data_item.question_id} exceeds token limit. Returning empty result.")

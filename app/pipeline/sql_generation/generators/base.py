@@ -25,7 +25,9 @@ class BaseSQLGenerator(ABC):
         data_item: DataItem,
         llm: LLM,
         prompt_format_func: Callable[[str], str],
-        sampling_budget: int = 1
+        sampling_budget: int = 1,
+        *,
+        schema_override: Optional[dict] = None,
     ) -> Tuple[str, int]:
         """
         Helper method to generate prompt with progressive schema stripping.
@@ -33,7 +35,9 @@ class BaseSQLGenerator(ABC):
         """
         max_prompt_len = llm.llm_config.max_model_len - llm.llm_config.max_tokens
         schema_service = get_schema_service()
-        schema_to_use = getattr(data_item, "database_schema_after_schema_linking", data_item.database_schema)
+        schema_to_use = schema_override
+        if schema_to_use is None:
+            schema_to_use = getattr(data_item, "database_schema_after_schema_linking", None) or data_item.database_schema
         prompt, level_idx = schema_service.build_prompt_with_progressive_schema_stripping(
             schema_to_use,
             encoding_model_name=llm.llm_config.model,

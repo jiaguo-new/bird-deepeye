@@ -75,3 +75,24 @@ baseline, semantic checks only, value anchors only, and both switches together.
 Keep input, models, generation slots and downstream revision/selection fixed.
 Report the individual and joint effects against baseline and the incremental
 effect of adding anchors to semantic checks. Compare EX and actual token costs.
+
+### Schema coverage follow-up
+
+The first paired study's combined arm scored 76/100 against the adapted
+baseline's 75/100. Of the combined arm's 24 misses, 20 had no correct SQL
+in either candidate pool, three had a correct revised candidate that was
+not selected, and one lost every correct candidate during revision.
+
+The follow-up sets `dc_full_schema_budget = 2` to give two direct slots
+the value-enriched schema before pruning. Two semantic slots and all
+skeleton/ICL slots still use the linked schema. Both arms retain the same
+value anchors and budgets. This follows the database profiling and schema
+grounding direction described in the AskData paper while testing whether
+a complementary schema view recovers SQL missed by pruning.
+
+Run both arms on 100 new TRAIN questions from 20 databases disjoint from
+the diagnosis and confirmation databases. Admission requires at least
+five net additional correct answers over the previous combined recipe
+on those same new questions. Report candidate coverage before and after
+revision and separate it from top-one EX. The prior 50-question
+confirmation remains sealed until admission.
