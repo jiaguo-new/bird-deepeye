@@ -285,6 +285,7 @@ class SQLRevisionConfig(BaseModel):
 
 
 class SQLSelectionConfig(BaseModel):
+    preserve_raw_candidates: bool = Field(default=False, description="Compare executable raw and revised result groups")
     llm: LLMConfig = Field(..., description="The llm config, used to select sql")
     save_path: str = Field(default=_path_to_str(WORKSPACE_ROOT / "sql_selection"), description="The save path of the sql selection result")
     filter_top_k_sql: int = Field(default=2, description="The number of top k sql to filter")
@@ -644,6 +645,7 @@ class Config:
                 WORKSPACE_ROOT / "sql_selection",
             ),
             "filter_top_k_sql": sql_selection_config.get("filter_top_k_sql", 10),
+            "preserve_raw_candidates": sql_selection_config.get("preserve_raw_candidates", False),
             "evaluator_sampling_budget": sql_selection_config.get("evaluator_sampling_budget", 1),
             "shortcut_consistency_score_threshold": sql_selection_config.get("shortcut_consistency_score_threshold", 0.8),
         }

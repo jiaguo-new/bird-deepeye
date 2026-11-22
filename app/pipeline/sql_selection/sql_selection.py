@@ -117,6 +117,8 @@ class SQLSelectionRunner:
             return None
 
     def _get_top_k_sql_candidates(self, data_item: DataItem) -> List[Tuple[str, str, float, float]]:
+        if self._stage_config.preserve_raw_candidates:
+            return self._get_raw_and_revised_groups(data_item)
         valid_sql_candidates = []
         fallback_sql_candidates = []
         sql_map_to_execution_result = {}
@@ -175,6 +177,37 @@ class SQLSelectionRunner:
                 execution_time,
             )
             for sql_candidate, _, consistency_score, execution_time in top_k_sql_candidates
+        ]
+
+    def _get_raw_and_revised_groups(self, data_item: DataItem) -> List[Tuple[str, str, float, float]]:
+        raw = data_item.sql_candidates or []
+        revised = data_item.sql_candidates_after_revision or []
+        if len(raw) != len(revised):
+            raise ValueError("Raw and revised candidate slots must align")
+        groups = {}
+        support = Counter()
+        revised_support = Counter()
+        executions = {}
+        for raw_sql, revised_sql in zip(raw, revised, strict=True):
+            slot_groups = set()
+            for sql, is_revised in ((revised_sql, True), (raw_sql, False)):
+                if not sql:
+                    continue
+                if sql not in executions:
+                    executions[sql] = self._execution_service.execute(data_item, sql)
+                result = executions[sql]
+                if result.result_rows is None:
+                    continue
+                key = self._execution_service.hash_result(data_item, result.result_rows)
+                groups.setdefault(key, (sql, result))
+                slot_groups.add(key)
+                if is_revised:
+                    revised_support[key] += 1
+            support.update(slot_groups)
+        ranked = sorted(groups, key=lambda key: (-support[key], -revised_support[key]))
+        return [
+            (groups[key][0], groups[key][1].result_table_str, support[key] / len(raw), np.inf)
+            for key in ranked[:self._stage_config.filter_top_k_sql]
         ]
 
     @staticmethod
@@ -336,7 +369,10 @@ class SQLSelectionRunner:
         
         # shortcut case
         # if the consistency score of top-1 SQL is larger than a threshold, directly select it
-        if top_k_sql_candidates[0][2] >= self._stage_config.shortcut_consistency_score_threshold:
+        if (
+            not self._stage_config.preserve_raw_candidates
+            and top_k_sql_candidates[0][2] >= self._stage_config.shortcut_consistency_score_threshold
+        ):
         # if top_k_sql_candidates[0][2] - top_k_sql_candidates[1][2] >= self._stage_config.shortcut_consistency_score_threshold:
             logger.info(f"Top-1 SQL candidate has a large consistency score: {top_k_sql_candidates[0][2]}, directly select it")
             # logger.info(f"Top-1 SQL candidate has a larger consistency score than top-2 SQL candidate ({top_k_sql_candidates[0][2]} vs. {top_k_sql_candidates[1][2]}), directly select the top-1 SQL")
@@ -398,10 +434,14 @@ class SQLSelectionRunner:
         else:
             robust_win_matrix = self._compute_robust_win_matrix(win_matrix)
             ranking_scores = np.mean(robust_win_matrix, axis=1)
-            score_weights = np.array([sql[2] for sql in top_k_sql_candidates]) / np.sum(np.array([sql[2] for sql in top_k_sql_candidates]))
-            ranking_scores = ranking_scores * score_weights
-            ranking = np.argsort(-ranking_scores)
-            data_item.final_selected_sql = top_k_sql_candidates[ranking[0]][0]
+            if self._stage_config.preserve_raw_candidates:
+                winner = max(range(len(top_k_sql_candidates)),
+                             key=lambda i: (ranking_scores[i], top_k_sql_candidates[i][2]))
+            else:
+                support = np.array([sql[2] for sql in top_k_sql_candidates])
+                score_weights = support / np.sum(support)
+                winner = np.argsort(-(ranking_scores * score_weights))[0]
+            data_item.final_selected_sql = top_k_sql_candidates[winner][0]
         
         data_item.sql_selection_time = time.time() - start_time
         data_item.sql_selection_llm_cost = total_token_usage

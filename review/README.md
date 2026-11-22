@@ -96,3 +96,20 @@ five net additional correct answers over the previous combined recipe
 on those same new questions. Report candidate coverage before and after
 revision and separate it from top-one EX. The prior 50-question
 confirmation remains sealed until admission.
+
+### Selection with raw candidates retained
+
+The full-schema follow-up scored 66/100 against 62/100, one question short
+of admission. Of seven missed questions with a correct revised candidate,
+three bypassed the judge due to the majority shortcut, one lost the correct
+group in the top-two filter, and three lost final ranking. Four other
+questions lost every correct candidate during revision.
+
+The new paired selection experiment gives both arms the same freshly
+generated and revised 12 slots per question. With
+`preserve_raw_candidates = true` and `filter_top_k_sql = 3`, raw and revised
+SQL remain eligible. Matching execution results in the same original slot
+get one vote. Result groups are shortlisted by support, but competing groups
+go to the judge without a majority shortcut. Support breaks equal judge
+scores. The maximum judge budget is 15 samples per question, versus 5 for
+the reference selector. This is a testable change, with no accuracy claim yet.
